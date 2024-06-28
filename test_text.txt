@@ -1,0 +1,109 @@
+(ns screen
+  (:require [buffer :as b]
+            [key :as k])
+  (:import (com.googlecode.lanterna TerminalPosition TextCharacter)
+           (com.googlecode.lanterna.screen TerminalScreen)
+           (com.googlecode.lanterna.terminal DefaultTerminalFactory))
+  (:gen-class))
+
+
+(def state
+  (atom
+    {:mode           ::normal
+     :running        false
+     :current-buffer (b/buffer)}))
+
+(def terminal-factory (new DefaultTerminalFactory))
+
+(def ^TerminalScreen scr (.createScreen terminal-factory))
+
+(defn start
+  "Start the screen. This must be called before you do anything else to the screen."
+  [^TerminalScreen scr]
+  (.startScreen scr)
+  (swap! state assoc :running true))
+
+(defn stop
+  "Stop the screen. This should be called when you're done with the screen."
+  [^TerminalScreen scr]
+  (.stopScreen scr)
+  (swap! state assoc :running false))
+
+(defn redraw [^TerminalScreen scr]
+  (.refresh scr))
+
+(defn get-size
+  "Return the current size of the screen as [cols rows]."
+  [^TerminalScreen screen]
+  (let [size (.getTerminalSize screen)
+        cols (.getColumns size)
+        rows (.getRows size)]
+    [cols rows]))
+
+(defn get-cursor
+  "Return the cursor position as [col row]."
+  [^TerminalScreen screen]
+  (let [pos (.getCursorPosition screen)
+        col (.getColumn pos)
+        row (.getRow pos)]
+    [col row]))
+
+(defn set-cursor
+  "Move the cursor to a specific location on the screen.
+
+  This won't affect where text is printed when you use put-string -- the
+  coordinates passed to put-string determine that.
+
+  This is only used to move the cursor, presumably right before a redraw so it
+  appears in a specific place."
+  ([^TerminalScreen screen [x y]]
+   (set-cursor screen x y))
+  ([^TerminalScreen screen x y]
+   (.setCursorPosition screen (new TerminalPosition x y))))
+
+(defn move-cursor
+  "Move the cursor to a specific location on the screen.
+
+  This won't affect where text is printed when you use put-string -- the
+  coordinates passed to put-string determine that.
+
+  This is only used to move the cursor, presumably right before a redraw so it
+  appears in a specific place."
+  ([^TerminalScreen screen [delta-x delta-y]]
+   (move-cursor screen delta-x delta-y))
+  ([^TerminalScreen screen delta-x delta-y]
+   (let [[x y] (get-cursor screen)]
+     (.setCursorPosition screen (new TerminalPosition (+ x delta-x) (+ y delta-y))))))
+
+(defn put-char
+  ([^TerminalScreen scr ^Character c]
+   (put-char scr c (get-cursor scr)))
+  ([^TerminalScreen scr ^Character c [x y]]
+   (put-char scr c x y))
+  ([^TerminalScreen scr ^Character c x y]
+   (mapv #(.setCharacter scr %1 y %2)
+         (iterate inc x)
+         (TextCharacter/fromCharacter c))))
+
+(defn put-string
+  ([^TerminalScreen scr ^String s]
+   (put-string scr s (get-cursor scr)))
+  ([^TerminalScreen scr ^String s [x y]]
+   (put-string scr s x y))
+  ([^TerminalScreen scr ^String s x y]
+   (mapv #(.setCharacter scr %1 y %2)
+         (iterate inc x)
+         (TextCharacter/fromString s))))
+
+(defn read-key
+  ([^TerminalScreen scr]
+   (-> scr
+       .readInput
+       k/to-keyword)))
+
+;; TODO support partial rendering
+(defn render [^TerminalScreen s buf]
+  (mapv #(put-string s %1 0 %2)
+        (::b/lines buf)
+        (iterate inc 0)))
+

@@ -1,0 +1,8 @@
+/out/
+.nrepl-port
+.cpcache/
+.clj-kondo/
+.idea/
+.lsp/
+.swp
+*.iml
