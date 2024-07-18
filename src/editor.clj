@@ -96,24 +96,20 @@
 
 ;;; State management
 
-(defn cur-buf-id [state]
-  (let [tab-id (:current-tab state)
-        tab (get (:tabs state) tab-id)
-        win-id (:current-window tab)
-        win (get (:windows state) win-id)]
-    (:current-buffer win)))
+(defn cur-tab [state]
+  (get (:tabs state) (:current-tab state)))
 
 (defn cur-win-id [state]
-  (let [tab-id (:current-tab state)
-        tab (get (:tabs state) tab-id)]
-    (:current-window tab)))
-
-(defn cur-buff [state]
-  (get (:buffers state) (cur-buf-id state)))
+  (:current-window (cur-tab state)))
 
 (defn cur-win [state]
   (get (:windows state) (cur-win-id state)))
 
+(defn cur-buf-id [state]
+  (:current-buffer (cur-win state)))
+
+(defn cur-buff [state]
+  (get (:buffers state) (cur-buf-id state)))
 
 (defn switch-to-tab [tab-id]
   (when (contains? (:tabs @editor-state) tab-id)
